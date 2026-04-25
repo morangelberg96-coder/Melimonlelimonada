@@ -1,0 +1,845 @@
+```html
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>להפוך את הלימון ללימונדה</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- React & ReactDOM -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <!-- Babel for in-browser JSX parsing -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <style>
+        body { font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel" data-type="module">
+        import * as Lucide from 'https://esm.sh/lucide-react@0.294.0';
+        const { useState, useEffect, useRef, useCallback, createContext, useContext } = React;
+        const { 
+          BookOpen, Star, Trophy, ArrowLeft, CheckCircle2, XCircle, 
+          RefreshCcw, Leaf, Sun, Smile,
+          Menu, X, Home, Library, PenTool, Award, ArrowUp, ArrowDown, Timer,
+          Sprout, Volume2, PlayCircle, Ear, Sparkles, Type
+        } = Lucide;
+
+        // --- Context for Niqqud ---
+        const NiqqudContext = createContext(true);
+        
+        const useT = () => {
+            const showNiqqud = useContext(NiqqudContext);
+            return (str) => {
+                if (typeof str !== 'string') return str;
+                return showNiqqud ? str : str.replace(/[\u0591-\u05C7]/g, '');
+            };
+        };
+
+        // --- נתונים (Data with Full Niqqud & Ktiv Male) ---
+        const VOCAB_WORDS = [
+          { id: 1, word: "מְצוּקָה", definition: "מַצָּב שֶׁל קוֹשִׁי רַב, צָרָה, סֵבֶל אוֹ לַחַץ פְּנִימִי." },
+          { id: 2, word: "הֲפוּגָה", definition: "הַפְסָקָה זְמַנִּית, עֲצִירָה שֶׁל פְּעִילוּת (לְמָשָׁל הֲפוּגָה בִּקְרָבוֹת אוֹ בְּגֶשֶׁם)." },
+          { id: 3, word: "לְהָפִיג", definition: "לְהַעֲלִים, לְסַלֵּק, לִגְרוֹם לְמַשֶּׁהוּ לְהֵיעָלֵם בְּהַדְרָגָה, כְּמוֹ פַּחַד אוֹ מֶתַח." },
+          { id: 4, word: "עֲרֵבוּת הֲדָדִית", definition: "אַחֲרָיוּת מְשׁוּתֶּפֶת, מַצָּב שֶׁבּוֹ אֲנָשִׁים דּוֹאֲגִים, תּוֹמְכִים וְעוֹזְרִים זֶה לָזֶה." },
+          { id: 5, word: "אֵיתָנוּת", definition: "יַצִּיבוּת, חוֹזֶק, חוֹסֶן נַפְשִׁי וִיכוֹלֶת עֲמִידָה אֵיתָנָה בִּפְנֵי מַשְׁבֵּרִים." },
+          { id: 6, word: "כְּמִיהָה", definition: "גַּעְגּוּעַ עַז, רָצוֹן חָזָק וּתְשׁוּקָה עֲמוּקָּה לְמַשֶּׁהוּ." }
+        ];
+
+        const VOCAB_PRACTICE = [
+          { sentence: "בִּזְמַן הַ______ הַקְּצָרָה בַּלְּחִימָה, יָצְאוּ הַתּוֹשָׁבִים לְהִצְטַיֵּיד בְּמָזוֹן וּבִתְרוּפוֹת.", options: ["מְצוּקָה", "הֲפוּגָה", "כְּמִיהָה", "אֵיתָנוּת"], correct: 1 },
+          { sentence: "הִירָתְמוּת הָאֶזְרָחִים לְאִיסּוּף צִיּוּד לְמִשְׁפְּחוֹת הַמְּפוּנִּים הִיא דּוּגְמָה נִפְלָאָה לְ______.", options: ["לְהָפִיג", "הֲפוּגָה", "עֲרֵבוּת הֲדָדִית", "מְצוּקָה"], correct: 2 },
+          { sentence: "כְּדֵי ______ אֶת הַמֶּתַח בַּמֶּרְחָב הַמּוּגָן, הַמַּדְרִיךְ סִיפֵּר סִיפּוּרִים מַצְחִיקִים לַיְּלָדִים.", options: ["לְהָפִיג", "אֵיתָנוּת", "כְּמִיהָה", "הֲפוּגָה"], correct: 0 },
+          { sentence: "הָעֵצִים שֶׁנִּיצְּלוּ מֵהַשְּׂרֵיפָה וְהִמְשִׁיכוּ לִפְרוֹחַ הוֹכִיחוּ ______ מַרְשִׁימָה בְּיוֹתֵר.", options: ["מְצוּקָה", "עֲרֵבוּת הֲדָדִית", "לְהָפִיג", "אֵיתָנוּת"], correct: 3 },
+          { sentence: "בְּלִבּוֹ שֶׁל כָּל אָדָם שֶׁחָוָה מִלְחָמָה קַיֶּימֶת ______ עֲמוּקָּה לִימֵי שָׁלוֹם וְשַׁלְוָה.", options: ["כְּמִיהָה", "הֲפוּגָה", "אֵיתָנוּת", "לְהָפִיג"], correct: 0 },
+          { sentence: "כְּשֶׁהַקְּהִילָּה שֶׁלָּנוּ נִמְצֵאת בְּ______, חָשׁוּב שֶׁנִּתְאַחֵד וְנִתְמוֹךְ אִישׁ בְּרֵעֵהוּ כְּכָל יְכוֹלְתֵּנוּ.", options: ["עֲרֵבוּת הֲדָדִית", "מְצוּקָה", "כְּמִיהָה", "הֲפוּגָה"], correct: 1 }
+        ];
+
+        const AUDITORY_PAIRS = [
+          { id: 1, pair: ["לִשְׁמוֹר", "לִסְפּוֹר"], correctWord: "לִשְׁמוֹר", correctIndex: 0 },
+          { id: 2, pair: ["מוּזְנָח", "מוּצְנָח"], correctWord: "מוּצְנָח", correctIndex: 1, audioText: "מוּצְנָח" },
+          { id: 3, pair: ["עֶצֶב", "עֵשֶׂב"], correctWord: "עֵשֶׂב", correctIndex: 1, audioText: "עֵשֶׂב" },
+          { id: 4, pair: ["לִשְׁתּוֹל", "לִשְׁקוֹל"], correctWord: "לִשְׁתּוֹל", correctIndex: 0 },
+          { id: 5, pair: ["מְבוּגָּרִים", "מְפוּזָּרִים"], correctWord: "מְפוּזָּרִים", correctIndex: 1 },
+          { id: 6, pair: ["שָׁתִיל", "סָלִיל"], correctWord: "שָׁתִיל", correctIndex: 0, audioText: "שָׁתִיל" }
+        ];
+
+        const PARAGRAPHS = [
+          {
+            text: "הַתְּקוּפָה הָאַחֲרוֹנָה בַּמְּדִינָה הָיְתָה מְלוּוָה בְּאִי-וַדָּאוּת גְּדוֹלָה. קוֹלוֹת הַנֶּפֶץ וְהָאֲזְעָקוֹת הֵפֵרוּ אֶת הַשַּׁלְוָה הַשִּׁגְרָתִית, וּתְחוּשַׁת מְצוּקָה רִחֲפָה בָּאֲוִיר. יָעֵל וְתוֹמֵר, תַּלְמִידֵי כִּיתָּה ה', נֶאֱלְצוּ לְהִסְתַּגֵּל לִמְצִיאוּת חֲדָשָׁה שֶׁבָּהּ הַלִּימּוּדִים הִתְקַיְּמוּ מֵרָחוֹק. לַמְרוֹת הַקּוֹשִׁי וְהַנִּיתּוּק מֵחַבְרֵיהֶם, הֵם הֵבִינוּ שֶׁהַהִישָּׁאֲרוּת בַּבַּיִת נוֹעֲדָה לִשְׁמוֹר עַל בִּטְחוֹנָם. הַמֶּרְחָב הַמּוּגָן הָפַךְ עֲבוּרָם לְמֵעֵין חֶדֶר נוֹסָף, שֶׁבּוֹ בִּילּוּ שָׁעוֹת אֲרוּכּוֹת שֶׁל קְרִיאָה, מִשְׂחָק וְשִׂיחוֹת שְׁקֵטוֹת עִם הוֹרֵיהֶם.",
+            questions: [
+              { q: "מָה הִפְרִיעַ לַשַּׁלְוָה הַשִּׁגְרָתִית שֶׁל הַתּוֹשָׁבִים לְפִי הַפִּסְקָה?", options: ["הַלִּימּוּדִים מֵרָחוֹק וְהַשִּׁיעוּרִים", "קוֹלוֹת הַנֶּפֶץ וְהָאֲזְעָקוֹת", "הַשִּׂיחוֹת הַשְּׁקֵטוֹת עִם הַהוֹרִים"], correct: 1, type: "אִיתּוּר פְּרָטִים" },
+              { q: "הַאִם יָעֵל וְתוֹמֵר הִמְשִׁיכוּ לָלֶכֶת לְבֵית הַסֵּפֶר כָּרָגִיל?", options: ["כֵּן, הַלִּימּוּדִים הִתְקַיְּמוּ כְּסִידְרָם", "לֹא, הֵם נֶאֱלְצוּ לְהִסְתַּגֵּל לְלִימּוּדִים מֵרָחוֹק"], correct: 1, type: "שְׁאֵלַת כֵּן/לֹא" },
+              { q: 'אֵיזוֹ מִילָּה מִתּוֹךְ הַפִּסְקָה הִיא מִילָּה נִרְדֶּפֶת לַמִּילָּה "רְגִילָה"?', options: ["שִׁגְרָתִית", "מְאַתְגֶּרֶת", "מְלוּוָה"], correct: 0, type: "נִרְדָּפוּת" },
+              { 
+                type: "grammar", 
+                q: "הַשְׁלִימוּ אֶת טַבְלַת הַפְּעָלִים מִתּוֹךְ הַפִּסְקָה:", 
+                verbs: [
+                  { word: "רִחֲפָה", correct: { root: "ר-ח-פ", tense: "עָבָר", person: "נִסְתֶּרֶת (הִיא)" } },
+                  { word: "הִתְקַיְּמוּ", correct: { root: "ק-י-מ", tense: "עָבָר", person: "נִסְתָּרִים (הֵם)" } },
+                  { word: "נֶאֱלְצוּ", correct: { root: "א-ל-צ", tense: "עָבָר", person: "נִסְתָּרִים (הֵם)" } }
+                ] 
+              },
+              { 
+                type: "open", 
+                q: "כֵּיצַד הָפַךְ הַמֶּרְחָב הַמּוּגָן עֲבוּר יָעֵל וְתוֹמֵר לְמָקוֹם שֶׁנָּעִים לִשְׁהוֹת בּוֹ? הַסְבִּירוּ בְּמִילִּים שֶׁלָּכֶם."
+              }
+            ]
+          },
+          {
+            text: "בְּאֶחָד הַיָּמִים, נוֹצְרָה הֲפוּגָה קְצָרָה בַּקְּרָבוֹת. הַשֶּׁקֶט הַיַּחֲסִי אִיפְשֵׁר לַשְּׁכֵנִים לָצֵאת מִבָּתֵּיהֶם וְלִנְשׁוֹם אֲוִיר צַח בַּחֲצַר הַבִּנְיָן. הַחָצֵר, שֶׁפַּעַם הָיְתָה מְלֵאָה בִּצְחוֹק יְלָדִים, עָמְדָה עַתָּה שׁוֹמֵמֶת וּמוּזְנַחַת, מְעוּטֶּרֶת בְּעָלִים יְבֵשִׁים וּבַעֲשָׂבִים שׁוֹטִים. יָעֵל הִבִּיטָה סָבִיב וְהִרְגִּישָׁה עֶצֶב עָמוֹק נוֹכַח הַמַּרְאֶה הֶעָגוּם. לְפֶתַע, הִבְרִיק בְּמוֹחָהּ רַעְיוֹן יְצִירָתִי: לָמָּה שֶׁלֹּא יְנַצְּלוּ אֶת הַזְּמַן הַפָּנוּי כְּדֵי לְטַפֵּחַ מֵחָדָשׁ אֶת הַגִּינָּה וּלְהַחְזִיר לָהּ אֶת יָפְיָהּ?",
+            questions: [
+              { q: "מָה אִיפְשְׁרָה הַהֲפוּגָה הַקְּצָרָה בַּקְּרָבוֹת?", options: ["לַחְזוֹר לִלְמוֹד בְּבֵית הַסֵּפֶר", "לָצֵאת מֵהַבָּתִּים וְלִנְשׁוֹם אֲוִיר צַח בֶּחָצֵר", "לִנְסוֹעַ לְטַיֵּיל בָּאָרֶץ"], correct: 1, type: "אִיתּוּר פְּרָטִים" },
+              { q: "מַדּוּעַ יָעֵל הִרְגִּישָׁה עֶצֶב עָמוֹק כְּשֶׁהִבִּיטָה בֶּחָצֵר?", options: ["כִּי הֶחָצֵר עָמְדָה שׁוֹמֵמֶת וּמוּזְנַחַת", "כִּי הִיא רָצְתָה לַחְזוֹר לַמֶּרְחָב הַמּוּגָן", "כִּי לֹא הָיוּ לָהּ חֲבֵרִים לְשַׂחֵק אִיתָּם"], correct: 0, type: "הַסָּקַת מַסְקָנוֹת" },
+              { q: 'בַּמִּשְׁפָּט "הֶחָצֵר עָמְדָה שׁוֹמֵמֶת", מָהוּ חֵלֶק הַדִּיבֵּר שֶׁל הַמִּילָּה "הֶחָצֵר"?', options: ["שֵׁם עֶצֶם", "פּוֹעַל", "תּוֹאַר הַפּוֹעַל"], correct: 0, type: "חֶלְקֵי דִּיבֵּר" },
+              { q: 'מָהוּ הַשּׁוֹרֶשׁ שֶׁל הַמִּילָּה "הִבְרִיק" (בַּמִּשְׁפָּט: "הִבְרִיק בְּמוֹחָהּ רַעְיוֹן")?', options: ["ב-ר-ק", "ר-ק-ק", "ב-ר-ר"], correct: 0, type: "שׁוֹרָשִׁים" },
+              { 
+                type: "open", 
+                q: "לְדַעְתְּכֶם, מַדּוּעַ הֶחָצֵר הָיְתָה שׁוֹמֵמֶת וּמוּזְנַחַת לִפְנֵי הָרַעְיוֹן שֶׁל יָעֵל?"
+              }
+            ]
+          },
+          {
+            text: "תּוֹמֵר הִתְלַהֵב מִיָּד מֵהַיּוֹזְמָה שֶׁל אֲחוֹתוֹ. בַּתְּחִילָּה הֵם תִּכְנְנוּ אֶת מִבְנֵה הַגִּינָּה, וּלְאַחַר מִכֵּן גִּיְּיסוּ אֶת יַלְדֵי הַבִּנְיָן לְעֶזְרָה. יַחַד הֵחֵלּוּ הַיְּלָדִים לַעֲדוֹר בְּמֶרֶץ אֶת הָאֲדָמָה הַקָּשָׁה, לְנַכֵּשׁ אֶת הָעֲשָׂבִים הַשּׁוֹטִים וְלִשְׁתּוֹל פְּקָעוֹת שֶׁל פִּרְחֵי עוֹנָה. תּוֹךְ כְּדֵי הָעֲבוֹדָה הַמְּאֻמֶּצֶת, הִצְטָרְפוּ אֲלֵיהֶם גַּם מְבוּגָּרִים, שֶׁהֵבִיאוּ כְּלֵי גִּינּוּן וּשְׁתִילִים נוֹסָפִים. שִׁיתּוּף הַפְּעוּלָּה יוֹצֵא הַדּוֹפֶן הַזֶּה הָיָה דּוּגְמָה חַיָּה לְעֲרֵבוּת הֲדָדִית מֻפְלָאָה.",
+            questions: [
+              { 
+                type: "sort", 
+                q: "סַדְּרוּ אֶת הָאֵירוּעִים בַּפִּסְקָה לְפִי הַסֵּדֶר הַנָּכוֹן (הִשְׁתַּמְּשׁוּ בַּחִיצִּים לְמַעְלָה/לְמַטָּה):", 
+                correctOrder: [
+                  "תּוֹמֵר הִתְלַהֵב מֵהַיּוֹזְמָה שֶׁל אֲחוֹתוֹ יָעֵל.",
+                  "יָעֵל וְתוֹמֵר תִּכְנְנוּ יַחַד אֶת מִבְנֵה הַגִּינָּה.",
+                  "הָאַחִים גִּיְּיסוּ אֶת יַלְדֵי הַבִּנְיָן לְעֶזְרָה.",
+                  "הַיְּלָדִים הֵחֵלּוּ לַעֲדוֹר וְלִשְׁתּוֹל פְּקָעוֹת.",
+                  "הַמְּבוּגָּרִים הִצְטָרְפוּ וְהֵבִיאוּ כְּלֵי גִּינּוּן."
+                ] 
+              },
+              { q: "אֵיזֶה בִּיטּוּי בַּפִּסְקָה מְתָאֵר אֶת הִצְטָרְפוּת כְּלַל הַשְּׁכֵנִים לַמַּאֲמָץ הַמְּשׁוּתָּף?", options: ["עֲבוֹדָה מְאוּמֶּצֶת", "עֲרֵבוּת הֲדָדִית מֻפְלָאָה", "פְּקָעוֹת שֶׁל פִּרְחֵי עוֹנָה"], correct: 1, type: "הַסָּקַת מַסְקָנוֹת" },
+              { q: 'בַּמִּשְׁפָּט "יַחַד הֵחֵלּוּ הַיְּלָדִים לַעֲדוֹר...", מָהוּ חֵלֶק הַדִּיבֵּר שֶׁל הַמִּילָּה "הֵחֵלּוּ"?', options: ["פּוֹעַל", "שֵׁם תּוֹאַר", "שֵׁם עֶצֶם"], correct: 0, type: "חֶלְקֵי דִּיבֵּר" },
+              { 
+                type: "open", 
+                q: "אֵיזוֹ מַשְׁמָעוּת יֵשׁ לְכָךְ שֶׁגַּם הַמְּבוּגָּרִים הִצְטָרְפוּ לָעֲבוֹדָה בַּגִּינָּה? מָה זֶה מֵעִיד עַל הַקְּהִילָּה?"
+              }
+            ]
+          },
+          {
+            text: "הָעֲשִׂיָּה הַמְּשׁוּתֶּפֶת בַּגִּינָּה עָזְרָה לְכוּלָּם לְהָפִיג אֶת הַמֶּתַח וְהַחֲרָדָה שֶׁהִצְטַבְּרוּ בְּמַהֲלַךְ יְמֵי הַלְּחִימָה הַקָּשִׁים. הַדִּיבּוּרִים הַבִּלְתִּי פּוֹסְקִים עַל הַמַּצָּב הַבִּיטְחוֹנִי הִתְחַלְּפוּ בִּמְהֵרָה בְּשִׂיחוֹת מְרַתְּקוֹת עַל הַשְׁקָיָה, שְׁעוֹת שֶׁמֶשׁ וְסוּגֵי צְמָחִים. הַמַּגָּע הַיָּשִׁיר בָּאֲדָמָה הָרְטוּבָּה הֵנִיב תְּחוּשַׁת רוֹגַע בְּקֶרֶב הַתּוֹשָׁבִים, וְהַצְּחוֹק חָזַר לְהַדְהֵד בַּחֲלַל הֶחָצֵר. כָּל שָׁתִיל חָדָשׁ שֶׁהוּנַּח בְּרַכּוּת בָּאֲדָמָה הִיוָּה עֲבוּרָם הַבְטָחָה אוֹפְּטִימִית לְעָתִיד טוֹב יוֹתֵר.",
+            questions: [
+              { q: "לְפִי הַפִּסְקָה, מָה סִיְּיעָה הָעֲשִׂיָּה הַמְּשׁוּתֶּפֶת לְהַשִּׂיג?", options: ["לְסַיֵּים אֶת הַמִּלְחָמָה מַהֵר יוֹתֵר", "לְהָפִיג אֶת הַמֶּתַח וְהַחֲרָדָה שֶׁל הַתּוֹשָׁבִים", "לְקַבֵּל כֶּסֶף עֲבוּר הַשְּׁתִילִים"], correct: 1, type: "אִיתּוּר פְּרָטִים" },
+              { q: "מַדּוּעַ הַדִּיבּוּרִים עַל הַמַּצָּב הַבִּיטְחוֹנִי הִתְחַלְּפוּ בְּשִׂיחוֹת עַל צְמָחִים?", options: ["כִּי הַגִּינּוּן סִיפֵּק נוֹשֵׂא חִיּוּבִי לְהִתְמַקֵּד בּוֹ וּלְהַסִּיחַ אֶת הַדַּעַת", "כִּי אָסוּר הָיָה לְדַבֵּר עַל הַמַּצָּב בֶּחָצֵר", "כִּי אֲנָשִׁים הִפְסִיקוּ לִשְׁמוֹעַ חֲדָשׁוֹת"], correct: 0, type: "הַסָּקַת מַסְקָנוֹת" },
+              { q: 'בַּצֵּירוּף "הָאֲדָמָה הָרְטוּבָּה", מָהוּ חֵלֶק הַדִּיבֵּר שֶׁל הַמִּילָּה "הָרְטוּבָּה"?', options: ["פּוֹעַל", "שֵׁם תּוֹאַר", "שֵׁם עֶצֶם"], correct: 1, type: "חֶלְקֵי דִּיבֵּר" },
+              { 
+                type: "open", 
+                q: "בְּאֵילּוּ פְּעִילוּיּוֹת בְּדִיּוּק בָּחֲרוּ הַשְּׁכֵנִים כְּדֵי לְהָפִיג אֶת הַמֶּתַח, וְלָמָּה לְדַעְתְּכֶם פְּעִילוּיּוֹת אֵלּוּ עָזְרוּ לָהֶם לְהֵירָגַע?"
+              }
+            ]
+          },
+          {
+            text: "חָלְפוּ מִסְפַּר שָׁבוּעוֹת שֶׁל צִיפִּיָּה דְּרוּכָה וְשֶׁל טִיפּוּל מָסוּר בַּגִּינָּה הַצּוֹמַחַת. הַיְּלָדִים לֹא וִיתְּרוּ אַף לְרֶגַע; הֵם הִמְשִׁיכוּ לְהַשְׁקוֹת וְלַעֲדוֹר גַּם בְּיָמִים שֶׁבָּהֶם הַמַּצָּב בַּחוּץ הָיָה מָתוּחַ, וְהוֹכִיחוּ אֵיתָנוּת וּדְבֵקוּת מַרְשִׁימָה בַּמַּטָּרָה. הַהַתְמָדָה הַבִּלְתִּי מִתְפַּשֶּׁרֶת שֶׁלָּהֶם הִשְׁתַּלְּמָה לְבַסּוֹף, כַּאֲשֶׁר הַנִּיצָּנִים הָרִאשׁוֹנִים הֵחֵלּוּ לִבְקוֹעַ מִתּוֹךְ הָאֲדָמָה הַכֵּהָה. מַרְאֵה הַגִּבְעוֹלִים הַיְרוּקִּים וְהָרַעֲנַנִּים שֶׁהֵצִיצוּ הַחוּצָה מִילֵּא אֶת תּוֹשָׁבֵי הַבִּנְיָן בְּהִתְרַגְּשׁוּת רַבָּה וּבִתְחוּשַׁת הֶיּשֵׂג אַדִּירָה.",
+            questions: [
+              { q: "כֵּיצַד הוֹכִיחוּ הַיְּלָדִים אֶת הָאֵיתָנוּת שֶׁלָּהֶם?", options: ["הֵם טִיפְּלוּ בַּגִּינָּה רַק כְּשֶׁהָיְתָה לָהֶם סַבְלָנוּת", "הֵם הִתְמִידוּ בַּטִּיפּוּל גַּם בְּיָמִים שֶׁהַמַּצָּב בַּחוּץ הָיָה מָתוּחַ", "הֵם צָעֲקוּ עַל מִי שֶׁלֹּא עָזַר לָהֶם"], correct: 1, type: "הַסָּקַת מַסְקָנוֹת" },
+              { q: "מִי מִילֵּא אֶת תּוֹשָׁבֵי הַבִּנְיָן בְּהִתְרַגְּשׁוּת וּבִתְחוּשַׁת הֶיּשֵׂג?", options: ["מַרְאֵה הַנִּיצָּנִים וְהַגִּבְעוֹלִים הַיְרוּקִּים שֶׁבָּקְעוּ מֵהָאֲדָמָה", "סִיּוּם שְׁנַת הַלִּימּוּדִים בְּבֵית הַסֵּפֶר", "הַחֲזָרָה שֶׁל הַשֶּׁקֶט לָעִיר"], correct: 0, type: "אִיתּוּר פְּרָטִים" },
+              { q: 'מָהוּ הַשּׁוֹרֶשׁ שֶׁל הַמִּילָּה "הִשְׁתַּלְּמָה"?', options: ["ש-ל-מ", "ת-ל-מ", "ש-ת-ל"], correct: 0, type: "שׁוֹרָשִׁים" },
+              { 
+                type: "open", 
+                q: "הַסְבִּירוּ בְּמִילִּים שֶׁלָּכֶם: מָה הַקֶּשֶׁר בֵּין הָ'אֵיתָנוּת' שֶׁהוֹכִיחוּ הַיְּלָדִים לְבֵין הַנִּיצָּנִים שֶׁהֵחֵלּוּ לִבְקוֹעַ מִתּוֹךְ הָאֲדָמָה?"
+              }
+            ]
+          },
+          {
+            text: "עַד מְהֵרָה, הֶחָצֵר הָפְכָה לִפְנִינַת טֶבַע שֶׁל מַמָּשׁ – מַרְבַד צִבְעוֹנִי וְסַסְגּוֹנִי שֶׁל פְּרָחִים מַרְהִיבִים שֶׁמָּשְׁכוּ אֲלֵיהֶם פַּרְפָּרִים וְצִיפּוֹרֵי שִׁיר. הַשְּׁכֵנִים הֵחֵלּוּ לָרֶדֶת אֶל הַגִּינָּה לִקְרַאת שְׁעוֹת הָעֶרֶב, לָשֶׁבֶת בְּצַוְותָּא, לִשְׁתּוֹת תֵּה חַם וּלְשׂוֹחֵחַ בַּאֲוִירָה נִינוֹחָה וְשַׁלְוָה. הַגִּינָּה הַפּוֹרַחַת סִימְּלָה עֲבוּר כּוּלָּם אֶת כּוֹחָם הֶעָצוּם שֶׁל הַחַיִּים, וְאֶת הַיְּכוֹלֶת הָאֱנוֹשִׁית לִיצוֹר יֹפִי וּמַשְׁמָעוּת גַּם מִתּוֹךְ זְמַנִּים שֶׁל חֹשֶׁךְ וְהֶרֶס. הִיא שִׁימְּשָׁה עוֹגֶן שֶׁל נֶחָמָה וְאוֹפְּטִימִיּוּת.",
+            questions: [
+              { q: "לְמָה הָפְכָה הֶחָצֵר בִּזְכוּת הָעֲבוֹדָה הַקָּשָׁה?", options: ["לִפְנִינַת טֶבַע עִם מַרְבַד צִבְעוֹנִי שֶׁל פְּרָחִים", "לְמִגְרַשׁ חֲנָיָה גָּדוֹל עֲבוּר הַשְּׁכֵנִים", "לְאֵזוֹר נָטוּשׁ וּמַפְחִיד"], correct: 0, type: "אִיתּוּר פְּרָטִים" },
+              { q: "לְפִי הַפִּסְקָה, מָה סִימְּלָה הַגִּינָּה הַפּוֹרַחַת עֲבוּר הַשְּׁכֵנִים?", options: ["שֶׁקָּשֶׁה מְאוֹד לְגַדֵּל צְמָחִים בָּעִיר", "אֶת הַיְּכוֹלֶת לִיצוֹר יֹפִי וּמַשְׁמָעוּת גַּם בִּזְמַנִּים קָשִׁים", "אֶת הַצּוֹרֶךְ לִקְנוֹת יְרָקוֹת בַּסּוּפֶּרְמַרְקֶט"], correct: 1, type: "הַסָּקַת מַסְקָנוֹת" },
+              { q: 'מָהוּ הַהֵפֶךְ מֵהַמִּילָּה "חוֹשֶׁךְ" הַמּוֹפִיעָה בַּפִּסְקָה?', options: ["עֶצֶב", "אוֹר", "הֶרֶס"], correct: 1, type: "הַפְכִיּוּת" },
+              { 
+                type: "open", 
+                q: "כִּתְבוּ דּוּגְמָה מֵהַחַיִּים שֶׁלָּכֶם לְמַצָּב שֶׁבּוֹ הִצְלַחְתֶּם לִיצוֹר מַשֶּׁהוּ טוֹב (יֹפִי אוֹ מַשְׁמָעוּת) מִתּוֹךְ קוֹשִׁי אוֹ שִׁעֲמוּם."
+              }
+            ]
+          },
+          {
+            text: "כְּשֶׁעָמְדוּ יָעֵל וְתוֹמֵר וְהִבִּיטוּ בַּגִּינָּה שֶׁפָּרְחָה בִּזְכוּת עֲבוֹדָתָם הַמְּאֻמֶּצֶת, הִתְרַחֵב לִבָּם מִגַּאֲוָה עֲצוּמָה. הַלֵּב שֶׁלָּהֶם הִתְמַלֵּא בִּכְמִיהָה כֵּנָה לְיָמִים שֶׁל שָׁלוֹם וְשַׁלְוָה, יָמִים שֶׁבָּהֶם כָּל הַיְּלָדִים יוּכְלוּ לְשַׂחֵק בַּחוּץ לְלֹא כָּל חֲשָׁשׁ אוֹ פַּחַד. הֵם לָמְדוּ שֶׁהַתִּקְוָה, בְּדִיּוּק כְּמוֹ אוֹתָם זְרָעִים קְטַנִּים שֶׁנִּטְמְנוּ עָמוֹק בָּאֲדָמָה, דּוֹרֶשֶׁת טִיפּוּחַ תְּמִידִי, אֱמוּנָה חֲזָקָה וְאוֹרֶךְ רוּחַ כְּדֵי לִצְמוֹחַ וְלִפְרוֹחַ בְּגָאוֹן. זוֹ הָיְתָה עֲבוּרָם הוֹכָחָה נִיצַּחַת שֶׁהָאוֹר תָּמִיד יִמְצָא דֶּרֶךְ לְנַצֵּחַ אֶת הַחוֹשֶׁךְ.",
+            questions: [
+              { q: "מָה הָיְתָה הַכְּמִיהָה שֶׁל יָעֵל וְתוֹמֵר בְּסוֹף הַסִּיפּוּר?", options: ["לְהַצְלִיחַ בַּמִּבְחָן בְּבֵית הַסֵּפֶר", "לְיָמִים שֶׁל שָׁלוֹם וְשַׁלְוָה שֶׁבָּהֶם אֶפְשָׁר לְשַׂחֵק לְלֹא פַּחַד", "לִשְׁתּוֹל עוֹד פְּרָחִים אֲדוּמִּים בַּגִּינָּה"], correct: 1, type: "הַסָּקַת מַסְקָנוֹת" },
+              { q: "לְמָה מְדַמֶּה הַטֶּקְסְט אֶת הַתִּקְוָה?", options: ["לָאוֹר שֶׁמְּנַצֵּחַ אֶת הַחוֹשֶׁךְ", "לִזְרָעִים שֶׁדּוֹרְשִׁים טִיפּוּחַ, אֱמוּנָה וְאוֹרֶךְ רוּחַ", "לְיָמִים שֶׁל מִלְחָמָה וּפַחַד"], correct: 1, type: "אִיתּוּר פְּרָטִים" },
+              { 
+                type: "grammar", 
+                q: "הַשְׁלִימוּ אֶת טַבְלַת הַפְּעָלִים מִתּוֹךְ הַפִּסְקָה:", 
+                verbs: [
+                  { word: "לָמְדוּ", correct: { root: "ל-מ-ד", tense: "עָבָר", person: "נִסְתָּרִים (הֵם)" } },
+                  { word: "יִמְצָא", correct: { root: "מ-צ-א", tense: "עָתִיד", person: "נִסְתָּר (הוּא)" } }
+                ] 
+              },
+              { 
+                type: "open", 
+                q: "מָהוּ הַמֶּסֶר הַמֶּרְכָּזִי שֶׁרָצוּ לְהַעֲבִיר לָנוּ בַּסִּיפּוּר הַזֶּה לְדַעְתְּכֶם?"
+              },
+              {
+                type: "open",
+                q: "לְסִיּוּם, אֵיךְ לְדַעְתְּכֶם הַכּוֹתֶרֶת 'לַהֲפוֹךְ אֶת הַלִּימוֹן לְלִימוֹנָדָה' מִתְקַשֶּׁרֶת לְנוֹשֵׂא הַסִּיפּוּר וּלְמָה שֶׁעָבְרוּ יָעֵל וְתוֹמֵר?"
+              }
+            ]
+          }
+        ];
+
+        const GRAMMAR_OPTIONS = {
+          roots: ["ר-ח-פ", "ק-י-מ", "א-ל-צ", "ל-מ-ד", "מ-צ-א", "ב-י-נ", "ע-ד-ר", "ש-ת-ל"],
+          tenses: ["עָבָר", "הוֹוֶה", "עָתִיד", "צִיוּוּי", "שֵׁם פּוֹעַל"],
+          persons: ["מְדַבֵּר/ת (אֲנִי)", "מְדַבְּרִים/וֹת (אֲנַחְנוּ)", "נוֹכֵחַ (אַתָּה)", "נוֹכַחַת (אַתְּ)", "נוֹכְחִים (אַתֶּם)", "נוֹכְחוֹת (אַתֶּן)", "נִסְתָּר (הוּא)", "נִסְתֶּרֶת (הִיא)", "נִסְתָּרִים (הֵם)", "נִסְתָּרוֹת (הֵן)"]
+        };
+
+        const gardenWallpaperStyle = {
+          backgroundColor: '#f0fdf4', 
+          backgroundImage: `url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M11 18c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm48 25c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm-43-7c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm63 31c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM34 90c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm56-76c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM12 86c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm28-65c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm23-11c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-6 60c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm29 22c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zM32 63c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm57-13c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-9-21c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM60 91c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM35 41c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM12 60c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2z' fill='%23bbf7d0' fill-opacity='0.6' fill-rule='evenodd'/%3E%3C/svg%3E")`,
+          backgroundAttachment: 'fixed'
+        };
+
+        // --- רכיבים (Components) ---
+        function MainApp() {
+          const t = useT(); // The niqqud translation hook
+          
+          const [currentScreen, setCurrentScreen] = useState('welcome');
+          const [score, setScore] = useState(0);
+          const [isMenuOpen, setIsMenuOpen] = useState(false);
+          const [flippedCards, setFlippedCards] = useState([]);
+          const [currentVocabQ, setCurrentVocabQ] = useState(0);
+          const [currentAuditoryQ, setCurrentAuditoryQ] = useState(0); 
+          
+          const [currentParaIndex, setCurrentParaIndex] = useState(0);
+          const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+          
+          const [feedback, setFeedback] = useState(null); 
+          const [selectedAnswer, setSelectedAnswer] = useState(null);
+          const [openText, setOpenText] = useState("");
+          const [sortItems, setSortItems] = useState([]);
+          const [grammarState, setGrammarState] = useState({});
+
+          const stateRef = useRef({ currentScreen, currentVocabQ, currentAuditoryQ, currentParaIndex, currentQuestionIndex });
+          useEffect(() => {
+            stateRef.current = { currentScreen, currentVocabQ, currentAuditoryQ, currentParaIndex, currentQuestionIndex };
+          });
+
+          useEffect(() => {
+            if (currentScreen === 'reading') {
+              const q = PARAGRAPHS[currentParaIndex].questions[currentQuestionIndex];
+              setFeedback(null);
+              setSelectedAnswer(null);
+              setOpenText("");
+              
+              if (q.type === 'sort') {
+                let items = q.correctOrder.map((text, idx) => ({ id: idx, text }));
+                items = [items[4], items[0], items[3], items[1], items[2]]; 
+                setSortItems(items);
+              }
+
+              if (q.type === 'grammar') {
+                const initial = {};
+                q.verbs.forEach((_, idx) => {
+                  initial[idx] = { root: "", tense: "", person: "" };
+                });
+                setGrammarState(initial);
+              }
+            }
+          }, [currentParaIndex, currentQuestionIndex, currentScreen]);
+
+          const playAudio = (word, audioText) => {
+            const textToSpeak = audioText || word.replace(/[\u0591-\u05C7]/g, '');
+            const utterance = new SpeechSynthesisUtterance(textToSpeak);
+            utterance.lang = 'he-IL';
+            utterance.rate = 0.85; 
+            window.speechSynthesis.speak(utterance);
+          };
+
+          const handleStart = () => setCurrentScreen('flashcards');
+
+          const jumpTo = (screen, paraIndex = 0, vocabQ = 0, auditoryQ = 0) => {
+            setCurrentScreen(screen);
+            setCurrentParaIndex(paraIndex);
+            setCurrentQuestionIndex(0);
+            setCurrentVocabQ(vocabQ);
+            setCurrentAuditoryQ(auditoryQ);
+            setFeedback(null);
+            setSelectedAnswer(null);
+            setIsMenuOpen(false);
+          };
+
+          const triggerNext = useCallback(() => {
+            const state = stateRef.current;
+            if (state.currentScreen === 'vocab-practice') {
+              if (state.currentVocabQ < VOCAB_PRACTICE.length - 1) {
+                setCurrentVocabQ(prev => prev + 1);
+                setFeedback(null); setSelectedAnswer(null);
+              } else {
+                jumpTo('auditory', 0, 0, 0);
+              }
+            } else if (state.currentScreen === 'auditory') {
+              if (state.currentAuditoryQ < AUDITORY_PAIRS.length - 1) {
+                setCurrentAuditoryQ(prev => prev + 1);
+                setFeedback(null); setSelectedAnswer(null);
+              } else {
+                jumpTo('reading', 0, 0, 0); 
+              }
+            } else if (state.currentScreen === 'reading') {
+              if (state.currentQuestionIndex < PARAGRAPHS[state.currentParaIndex].questions.length - 1) {
+                setCurrentQuestionIndex(prev => prev + 1);
+              } else {
+                if (state.currentParaIndex < PARAGRAPHS.length - 1) {
+                  setCurrentParaIndex(prev => prev + 1);
+                  setCurrentQuestionIndex(0);
+                } else {
+                  setCurrentScreen('summary');
+                }
+              }
+            }
+          }, []);
+
+          useEffect(() => {
+            if (feedback === 'correct') {
+              const timer = setTimeout(() => {
+                triggerNext();
+              }, 1500);
+              return () => clearTimeout(timer);
+            }
+          }, [feedback, triggerNext]);
+
+          const handleVocabAnswer = (selectedIndex) => {
+            if (feedback === 'correct') return;
+            setSelectedAnswer(selectedIndex);
+            const isCorrect = selectedIndex === VOCAB_PRACTICE[currentVocabQ].correct;
+            if (isCorrect) {
+              setFeedback('correct');
+              setScore(prev => prev + 10);
+            } else setFeedback('incorrect');
+          };
+
+          const handleAuditoryAnswer = (selectedIndex) => {
+            if (feedback === 'correct') return;
+            setSelectedAnswer(selectedIndex);
+            const isCorrect = selectedIndex === AUDITORY_PAIRS[currentAuditoryQ].correctIndex;
+            if (isCorrect) {
+              setFeedback('correct');
+              setScore(prev => prev + 15); 
+            } else setFeedback('incorrect');
+          };
+
+          const handleReadingAnswer = (selectedIndex) => {
+            if (feedback === 'correct') return;
+            setSelectedAnswer(selectedIndex);
+            const isCorrect = selectedIndex === PARAGRAPHS[currentParaIndex].questions[currentQuestionIndex].correct;
+            if (isCorrect) {
+              setFeedback('correct');
+              setScore(prev => prev + 10);
+            } else setFeedback('incorrect');
+          };
+
+          const handleOpenSubmit = () => {
+            if (openText.trim().length > 2) {
+              setScore(prev => prev + 15);
+              triggerNext(); 
+            }
+          };
+
+          const handleSortMove = (index, direction) => {
+            if (feedback === 'correct') return;
+            const newItems = [...sortItems];
+            if (direction === -1 && index > 0) {
+              [newItems[index - 1], newItems[index]] = [newItems[index], newItems[index - 1]];
+            } else if (direction === 1 && index < newItems.length - 1) {
+              [newItems[index + 1], newItems[index]] = [newItems[index], newItems[index + 1]];
+            }
+            setSortItems(newItems);
+          };
+
+          const checkSortOrder = () => {
+            const q = PARAGRAPHS[currentParaIndex].questions[currentQuestionIndex];
+            let isCorrect = true;
+            for (let i = 0; i < sortItems.length; i++) {
+              if (sortItems[i].text !== q.correctOrder[i]) {
+                isCorrect = false; break;
+              }
+            }
+            if (isCorrect) {
+              setFeedback('correct');
+              setScore(prev => prev + 15);
+            } else setFeedback('incorrect');
+          };
+
+          const updateGrammarState = (verbIdx, field, value) => {
+            setGrammarState(prev => ({
+              ...prev,
+              [verbIdx]: { ...prev[verbIdx], [field]: value }
+            }));
+          };
+
+          const checkGrammarAnswers = () => {
+            const q = PARAGRAPHS[currentParaIndex].questions[currentQuestionIndex];
+            let isAllCorrect = true;
+            q.verbs.forEach((v, idx) => {
+              if (
+                grammarState[idx].root !== v.correct.root ||
+                grammarState[idx].tense !== v.correct.tense ||
+                grammarState[idx].person !== v.correct.person
+              ) {
+                isAllCorrect = false;
+              }
+            });
+            if (isAllCorrect) {
+              setFeedback('correct');
+              setScore(prev => prev + 15);
+            } else setFeedback('incorrect');
+          };
+
+          const getMenuBtnClass = (screen, paraIndex = -1) => {
+            const isActive = currentScreen === screen && (paraIndex === -1 || currentParaIndex === paraIndex);
+            return `w-full text-right p-3 rounded-xl transition-all flex items-center gap-3 ${
+              isActive ? 'bg-green-100 text-green-800 font-bold shadow-sm' : 'text-stone-600 hover:bg-stone-50 hover:text-green-700 font-medium'
+            }`;
+          };
+
+          const totalSteps = VOCAB_PRACTICE.length + AUDITORY_PAIRS.length + PARAGRAPHS.reduce((sum, p) => sum + p.questions.length, 0);
+          let currentStep = 0;
+          if (currentScreen === 'vocab-practice') currentStep = currentVocabQ;
+          else if (currentScreen === 'auditory') currentStep = VOCAB_PRACTICE.length + currentAuditoryQ;
+          else if (currentScreen === 'reading') {
+            let readingSteps = 0;
+            for (let i = 0; i < currentParaIndex; i++) readingSteps += PARAGRAPHS[i].questions.length;
+            readingSteps += currentQuestionIndex;
+            currentStep = VOCAB_PRACTICE.length + AUDITORY_PAIRS.length + readingSteps;
+          } else if (currentScreen === 'summary') currentStep = totalSteps;
+          
+          const progressPercent = Math.max(2, (currentStep / totalSteps) * 100);
+          const showProgress = ['vocab-practice', 'auditory', 'reading'].includes(currentScreen);
+
+          return (
+            <div className="flex-1 flex flex-col relative w-full pb-16">
+              
+              {/* מד התקדמות */}
+              {showProgress && (
+                <div className="fixed top-4 left-1/2 -translate-x-1/2 w-11/12 max-w-lg bg-white/90 backdrop-blur rounded-full h-5 shadow-md border-2 border-green-200 z-30 hidden sm:block">
+                   <div 
+                     className="h-full bg-gradient-to-l from-green-400 to-green-600 rounded-full transition-all duration-700 ease-out relative"
+                     style={{ width: `${progressPercent}%` }}
+                   >
+                     <div className="absolute -left-4 top-1/2 -translate-y-1/2 bg-white rounded-full p-1.5 shadow-lg border-2 border-green-500 text-green-600 transform transition-transform hover:scale-110">
+                        <Leaf size={20} className="fill-current animate-pulse" />
+                     </div>
+                   </div>
+                </div>
+              )}
+
+              {/* Menu Button */}
+              <button onClick={() => setIsMenuOpen(true)} className="fixed top-4 right-4 md:top-6 md:right-6 z-40 bg-white p-3 rounded-full shadow-lg border-2 border-green-200 text-green-700 hover:bg-green-50 transition-all hover:scale-110">
+                <Menu size={28} />
+              </button>
+
+              {/* Menu Modal */}
+              {isMenuOpen && (
+                <div className="fixed inset-0 bg-stone-900/40 z-50 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setIsMenuOpen(false)}>
+                  <div className="fixed top-0 right-0 w-72 h-full bg-white shadow-2xl p-6 overflow-y-auto border-l-4 border-green-500" onClick={e => e.stopPropagation()}>
+                    <div className="flex justify-between items-center mb-6">
+                      <h2 className="text-2xl font-bold text-green-800 flex items-center gap-2"><Menu size={24}/> {t("תַּפְרִיט")}</h2>
+                      <button onClick={() => setIsMenuOpen(false)} className="text-stone-400 hover:text-stone-800 bg-stone-100 p-2 rounded-full"><X size={20}/></button>
+                    </div>
+                    <div className="space-y-1">
+                      <button onClick={() => jumpTo('welcome')} className={getMenuBtnClass('welcome')}><Home size={20}/> {t("מָסָךְ רָאשִׁי")}</button>
+                      <button onClick={() => jumpTo('flashcards')} className={getMenuBtnClass('flashcards')}><Library size={20}/> {t("כַּרְטִיסִיּוֹת מִילִּים")}</button>
+                      <button onClick={() => jumpTo('vocab-practice')} className={getMenuBtnClass('vocab-practice')}><PenTool size={20}/> {t("תִּרְגּוּל מִילִּים")}</button>
+                      <button onClick={() => jumpTo('auditory')} className={getMenuBtnClass('auditory')}><Ear size={20}/> {t("אִימּוּן שְׁמִיעָתִי")}</button>
+                      <div className="pt-5 pb-2 px-3 text-sm font-bold text-stone-400 border-t border-stone-100 mt-4">{t("קְרִיאָה וַהֲבָנָה")}</div>
+                      {PARAGRAPHS.map((_, i) => (
+                        <button key={i} onClick={() => jumpTo('reading', i)} className={getMenuBtnClass('reading', i)}>
+                          <BookOpen size={20}/> {t(`פִּסְקָה ${String.fromCharCode(1488 + i)}'`)}
+                        </button>
+                      ))}
+                      <div className="pt-5 pb-2 px-3 text-sm font-bold text-stone-400 border-t border-stone-100 mt-4">{t("סִיּוּם")}</div>
+                      <button onClick={() => jumpTo('summary')} className={getMenuBtnClass('summary')}><Award size={20}/> {t("תְּעוּדַת סִיּוּם")}</button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Screens */}
+              {currentScreen === 'welcome' && (
+                <div className="flex-1 flex flex-col items-center justify-center p-6 bg-white/40 backdrop-blur-sm pt-20">
+                  <div className="bg-white/95 p-8 md:p-12 rounded-[2.5rem] shadow-2xl max-w-3xl text-center space-y-6 border-4 border-green-300 relative overflow-hidden">
+                    <div className="absolute -top-12 -right-12 text-amber-100 opacity-50"><Sun size={200} /></div>
+                    <div className="relative z-10 flex flex-col items-center">
+                      <div className="bg-amber-100 text-amber-600 p-4 rounded-full mb-6 shadow-sm inline-block">
+                        <Sparkles size={48} strokeWidth={2} className="animate-pulse" />
+                      </div>
+                      <h1 className="text-4xl md:text-5xl lg:text-6xl font-black text-green-800 leading-tight mb-4 drop-shadow-sm">
+                        {t("לַהֲפוֹךְ אֶת הַלִּימוֹן לְלִימוֹנָדָה")}
+                      </h1>
+                      <div className="bg-stone-50 border-2 border-stone-100 p-6 md:p-8 rounded-3xl mb-8 shadow-inner">
+                        <p className="text-xl md:text-2xl text-stone-700 font-medium leading-relaxed">
+                          {t("תָּאֲרוּ לָעַצְמְכֶם מַצָּב שֶׁבּוֹ הַכֹּל נִרְאֶה קְצָת אָפוֹר, מַפְחִיד וּמָלֵא בְּאִי-וַדָּאוּת. בְּדִיּוּק בְּמַצָּב כָּזֶה מָצְאוּ אֶת עַצְמָם יָעֵל וְתוֹמֵר. אֲבָל בִּמְקוֹם לִשְׁקוֹעַ בְּעֶצֶב, הֵם הֶחְלִיטוּ לַעֲשׂוֹת מַשֶּׁהוּ מַדְהִים שֶׁשִּׁינָּה אֶת פְּנֵי הַשְּׁכוּנָה כֻּלָּהּ!")} <br/><br/>
+                          <span className="font-bold text-green-700">{t("הִצְטָרְפוּ אֵלֵינוּ לְמַסָּע מְרַגֵּשׁ")}</span> {t("שֶׁבּוֹ נְגַלֶּה אֵיךְ אֶפְשָׁר לִמְצוֹא אוֹר גַּם בְּתוֹךְ הַחוֹשֶׁךְ, וְאֵיךְ הוֹפְכִים אֶת 'הַלִּימוֹן הֶחָמוּץ' שֶׁל הַחַיִּים – לְלִימוֹנָדָה מְתוּקָה וּמְרַעֲנֶנֶת.")}
+                        </p>
+                      </div>
+                      <div className="bg-green-50/90 p-6 rounded-2xl text-right w-full border-2 border-green-200">
+                        <h3 className="font-bold text-xl mb-4 flex items-center gap-2 text-green-900">
+                          <Sprout size={28} className="text-green-600"/> {t("אָז מָה מְחַכֶּה לָנוּ בַּפְּעִילוּת?")}
+                        </h3>
+                        <ul className="list-none space-y-3 text-stone-700 font-medium text-lg">
+                          <li className="flex items-center gap-3"><span className="bg-green-200 text-green-800 rounded-full w-8 h-8 flex items-center justify-center font-bold">1</span> {t("נַכִּיר מִילִּים חֲדָשׁוֹת וַחֲשׁוּבוֹת לַפִּסְקָה.")}</li>
+                          <li className="flex items-center gap-3"><span className="bg-green-200 text-green-800 rounded-full w-8 h-8 flex items-center justify-center font-bold">2</span> {t("נְאַמֵּן אֶת הַשְּׁמִיעָה שֶׁלָּנוּ בְּמִשְׂחַק צְלִילִים.")}</li>
+                          <li className="flex items-center gap-3"><span className="bg-green-200 text-green-800 rounded-full w-8 h-8 flex items-center justify-center font-bold">3</span> {t("נִקְרָא יַחַד אֶת הַסִּיפּוּר הַמָּלֵא.")}</li>
+                          <li className="flex items-center gap-3"><span className="bg-amber-200 text-amber-800 rounded-full w-8 h-8 flex items-center justify-center font-bold"><Trophy size={16}/></span> {t("נַעֲנֶה עַל חִידוֹת וּשְׁאֵלוֹת וְנֶאֱסוֹף נְקוּדּוֹת!")}</li>
+                        </ul>
+                      </div>
+                      <button onClick={handleStart} className="mt-10 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white text-2xl font-bold py-5 px-14 rounded-full shadow-xl transform transition hover:scale-105 flex items-center justify-center gap-3 mx-auto w-full md:w-auto">
+                        <Smile size={32} /> {t("בּוֹאוּ נַתְחִיל בַּמַּסָּע!")}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {currentScreen === 'flashcards' && (
+                <div className="flex-1 p-6 pt-24 pb-24 bg-white/30 backdrop-blur-sm">
+                  <div className="max-w-4xl mx-auto">
+                    <header className="mb-8 text-center space-y-3 bg-white/80 py-6 rounded-3xl shadow-sm border border-green-200">
+                      <h2 className="text-3xl md:text-4xl font-bold text-green-700 flex items-center justify-center gap-3">
+                        <Library size={40} className="text-amber-600" /> {t("מִילִּים שֶׁכְּדַאי לְהַכִּיר")}
+                      </h2>
+                      <p className="text-xl text-green-800 font-medium">{t("לַחֲצוּ עַל כָּל כַּרְטִיסִיָּה כְּדֵי לְגַלּוֹת אֶת הַפֵּירוּשׁ שֶׁל הַמִּילָּה.")}</p>
+                    </header>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {VOCAB_WORDS.map(card => {
+                        const isFlipped = flippedCards.includes(card.id);
+                        return (
+                          <button key={card.id} onClick={() => { if (!isFlipped) setFlippedCards([...flippedCards, card.id]); }}
+                            className={`relative h-48 w-full rounded-2xl p-6 flex flex-col items-center justify-center text-center transition-all duration-500 shadow-md ${
+                              isFlipped ? 'bg-amber-50 border-4 border-amber-200 shadow-amber-100/50' : 'bg-green-500 text-white hover:bg-green-600 hover:shadow-lg'
+                            }`}
+                          >
+                            {isFlipped ? (
+                              <div className="space-y-4 animate-in fade-in zoom-in">
+                                <h3 className="text-2xl font-bold text-green-900">{t(card.word)}</h3>
+                                <p className="text-lg text-stone-700 font-normal">{t(card.definition)}</p>
+                              </div>
+                            ) : (
+                              <h3 className="text-3xl font-bold flex items-center gap-2"><Leaf size={24} className="opacity-50"/> {t(card.word)}</h3>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {flippedCards.length === VOCAB_WORDS.length && (
+                      <div className="mt-12 text-center animate-in slide-in-from-bottom">
+                        <button onClick={() => jumpTo('vocab-practice')} className="bg-amber-500 hover:bg-amber-600 text-white text-2xl font-bold py-4 px-10 rounded-full shadow-lg transform transition hover:scale-105 inline-flex items-center gap-3">
+                          {t("הֶמְשֵׁךְ לְתִרְגּוּל")} <ArrowLeft size={28} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {currentScreen === 'vocab-practice' && (() => {
+                const q = VOCAB_PRACTICE[currentVocabQ];
+                return (
+                  <div className="flex-1 flex flex-col items-center pt-24 p-6 bg-white/30 backdrop-blur-sm">
+                    <div className="max-w-3xl w-full">
+                      <div className="flex justify-between items-center mb-8 bg-white/90 p-4 rounded-2xl shadow-sm border border-green-200">
+                        <h2 className="text-3xl font-bold text-green-700 flex items-center gap-3"><Star className="text-amber-500" fill="currentColor" /> {t("מְתַרְגְּלִים מִילִּים")}</h2>
+                        <div className="bg-amber-50 px-4 py-2 rounded-full shadow-sm font-bold text-amber-800 border border-amber-200 flex items-center gap-2"><Trophy size={20} className="text-amber-500"/> {score} {t("נְקוּדּוֹת")}</div>
+                      </div>
+                      <div className="bg-white/95 p-8 rounded-3xl shadow-lg border-2 border-green-200">
+                        <p className="text-2xl text-stone-600 font-normal mb-8 leading-relaxed">
+                          {t("הַשְׁלִימוּ אֶת הַמִּשְׁפָּט:")}
+                          <br/><br/>
+                          <span className="font-semibold text-3xl text-stone-800">{t(q.sentence)}</span>
+                        </p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {q.options.map((opt, idx) => (
+                            <button key={idx} onClick={() => handleVocabAnswer(idx)} disabled={feedback === 'correct'}
+                              className={`p-4 text-2xl font-normal rounded-xl transition-all border-2 
+                                ${feedback === 'correct' && idx === q.correct ? 'bg-green-500 text-white border-green-600 shadow-md scale-105 font-bold' 
+                                  : feedback === 'incorrect' && selectedAnswer === idx ? 'bg-rose-50 text-rose-600 border-rose-300 shadow-inner'
+                                  : 'bg-white text-green-800 border-green-300 hover:bg-green-50 hover:border-green-400'
+                                }`}
+                            >
+                              {t(opt)}
+                            </button>
+                          ))}
+                        </div>
+                        {feedback === 'correct' && (
+                          <div className="mt-8 flex flex-col items-center animate-in zoom-in">
+                            <div className="bg-green-100 text-green-900 px-6 py-4 rounded-full font-bold shadow-sm flex items-center gap-3 text-xl border-2 border-green-300">
+                              <CheckCircle2 size={28}/> <span>{t("תְּשׁוּבָה נְכוֹנָה! מִתְקַדְּמִים...")}</span> <Timer className="animate-pulse" size={24}/>
+                            </div>
+                          </div>
+                        )}
+                        {feedback === 'incorrect' && (
+                          <div className="mt-8 p-4 bg-rose-50 border-2 border-rose-200 text-rose-700 rounded-2xl flex items-center justify-center gap-3">
+                            <XCircle size={24} /> <span className="text-lg font-medium">{t("לֹא מְדוּיָּק... נַסּוּ שׁוּב.")}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {currentScreen === 'auditory' && (() => {
+                const q = AUDITORY_PAIRS[currentAuditoryQ];
+                return (
+                  <div className="flex-1 flex flex-col items-center pt-24 p-6 bg-white/30 backdrop-blur-sm">
+                    <div className="max-w-3xl w-full text-center">
+                      <div className="flex justify-between items-center mb-8 bg-white/90 p-4 rounded-2xl shadow-sm border border-green-200">
+                         <h2 className="text-3xl font-bold text-green-700 flex items-center gap-3"><Ear className="text-amber-500" /> {t("אִימּוּן שְׁמִיעָתִי")}</h2>
+                         <div className="bg-amber-50 px-4 py-2 rounded-full shadow-sm font-bold text-amber-800 border border-amber-200 flex items-center gap-2"><Trophy size={20} className="text-amber-500"/> {score} {t("נְקוּדּוֹת")}</div>
+                      </div>
+                      <div className="bg-white/95 p-10 rounded-3xl shadow-lg border-2 border-green-200 space-y-8">
+                        <p className="text-2xl text-stone-700 font-medium leading-relaxed">
+                          {t("לַחֲצוּ עַל כַּפְתּוֹר הָרַמְקוֹל לְהַשְׁמָעַת הַמִּילָּה.")}<br/>
+                          {t("לְאַחַר מִכֵּן, בַּחֲרוּ אֶת הַמִּילָּה שֶׁשְּׁמַעְתֶּם מִתּוֹךְ הַצֶּמֶד:")}
+                        </p>
+                        <button onClick={() => playAudio(q.correctWord, q.audioText)} className="mx-auto bg-amber-400 hover:bg-amber-500 text-white rounded-full p-8 shadow-lg transform transition hover:scale-110 flex items-center justify-center animate-pulse">
+                          <Volume2 size={64} />
+                        </button>
+                        <div className="grid grid-cols-2 gap-6 mt-12">
+                          {q.pair.map((word, idx) => (
+                            <button key={idx} onClick={() => handleAuditoryAnswer(idx)} disabled={feedback === 'correct'}
+                              className={`p-6 text-4xl font-bold rounded-2xl transition-all border-4 
+                                ${feedback === 'correct' && idx === q.correctIndex ? 'bg-green-500 text-white border-green-600 shadow-xl scale-110' 
+                                  : feedback === 'incorrect' && selectedAnswer === idx ? 'bg-rose-50 text-rose-600 border-rose-300 shadow-inner opacity-50'
+                                  : 'bg-white text-green-800 border-green-200 hover:bg-green-50 hover:border-green-400'
+                                }`}
+                            >
+                              {t(word)}
+                            </button>
+                          ))}
+                        </div>
+                        <div className="h-16 mt-6">
+                          {feedback === 'correct' && (
+                            <div className="flex justify-center animate-in zoom-in">
+                              <div className="bg-green-100 text-green-900 px-6 py-4 rounded-full font-bold shadow-sm flex items-center gap-3 text-xl border-2 border-green-300">
+                                <CheckCircle2 size={28}/> <span>{t("שְׁמִיעָה מְצוּיֶּנֶת! כָּל הַכָּבוֹד.")}</span> <Timer className="animate-pulse" size={24}/>
+                              </div>
+                            </div>
+                          )}
+                          {feedback === 'incorrect' && (
+                            <div className="p-4 bg-rose-50 border-2 border-rose-200 text-rose-700 rounded-2xl flex items-center justify-center gap-3 inline-flex">
+                              <XCircle size={24} /> <span className="text-lg font-medium">{t("לֹא בְּדִיּוּק הַמִּילָּה הַזּוֹ... נַסּוּ שׁוּב.")}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {currentScreen === 'reading' && (() => {
+                const para = PARAGRAPHS[currentParaIndex];
+                const question = para.questions[currentQuestionIndex];
+                return (
+                  <div className="flex-1 p-4 pt-24 md:p-8 md:pt-28 bg-white/20 backdrop-blur-[2px]">
+                    <div className="max-w-6xl mx-auto space-y-6">
+                      <header className="flex flex-wrap justify-between items-center bg-white/95 p-4 rounded-2xl shadow-sm mb-6 border border-stone-200">
+                        <h2 className="text-2xl md:text-3xl font-bold text-green-800 flex items-center gap-2">
+                          <BookOpen className="text-amber-600"/> {t("קְוֹרְאִים וּמְבִינִים")} ({t("פִּסְקָה")} {String.fromCharCode(1488 + currentParaIndex)}' {t("מִתּוֹךְ ז'")})
+                        </h2>
+                        <div className="bg-amber-50 border border-amber-200 px-5 py-2 rounded-full shadow-sm font-bold text-amber-800 flex items-center gap-2 text-xl mt-4 md:mt-0">
+                          <Trophy size={24} className="text-amber-500"/> {score} {t("נְקוּדּוֹת")}
+                        </div>
+                      </header>
+
+                      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                        <div className="lg:col-span-5 bg-white/95 p-6 md:p-8 rounded-3xl shadow-md border-t-8 border-green-500">
+                          <h3 className="text-xl font-bold text-stone-500 mb-4 flex items-center gap-2"><Leaf className="text-green-500"/> {t("קִרְאוּ אֶת הַפִּסְקָה:")}</h3>
+                          <p className="text-2xl leading-relaxed text-stone-800 font-normal">
+                            {t(para.text)}
+                          </p>
+                        </div>
+                        <div className="lg:col-span-7 bg-white/95 p-6 md:p-8 rounded-3xl shadow-md border-t-8 border-amber-500 flex flex-col">
+                          <div className="mb-6 flex justify-between items-start">
+                            <h3 className="text-xl font-bold text-amber-700 mb-2">{t("שְׁאֵלָה")} {currentQuestionIndex + 1} {t("מִתּוֹךְ")} {para.questions.length}</h3>
+                            <span className="bg-amber-100 text-amber-800 text-sm font-bold px-3 py-1 rounded-full">{t(question.type)}</span>
+                          </div>
+                          <h4 className="text-2xl md:text-3xl font-semibold text-stone-800 mb-8 leading-snug">
+                            {t(question.q)}
+                          </h4>
+                          <div className="flex-grow flex flex-col justify-center">
+                            
+                            {question.options && (
+                              <div className="space-y-4">
+                                {question.options.map((opt, idx) => (
+                                  <button key={idx} onClick={() => handleReadingAnswer(idx)} disabled={feedback === 'correct'}
+                                    className={`w-full text-right p-4 md:p-5 text-xl font-normal rounded-2xl transition-all border-2 
+                                      ${feedback === 'correct' && idx === question.correct ? 'bg-amber-500 text-white border-amber-600 shadow-lg font-bold scale-105' 
+                                        : feedback === 'incorrect' && selectedAnswer === idx ? 'bg-rose-50 text-rose-600 border-rose-200 shadow-inner'
+                                        : 'bg-stone-50 text-stone-700 border-stone-200 hover:bg-amber-50 hover:border-amber-400'
+                                      }`}
+                                  >
+                                    {t(opt)}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+
+                            {question.type === "open" && (
+                              <div className="space-y-4">
+                                <textarea value={openText} onChange={(e) => setOpenText(e.target.value)} placeholder={t("הַקְלִידוּ אֶת תְּשׁוּבַתְכֶם כָּאן... (הַתְּשׁוּבָה תִּישָּׁמֵר)")}
+                                  className="w-full h-32 p-4 text-xl border-2 border-stone-200 rounded-xl focus:border-amber-400 focus:ring focus:ring-amber-100 font-normal resize-none bg-stone-50"
+                                />
+                                <button onClick={handleOpenSubmit} disabled={openText.trim().length < 3}
+                                  className="bg-amber-500 hover:bg-amber-600 disabled:bg-stone-300 disabled:cursor-not-allowed text-white font-bold text-xl py-3 px-8 rounded-xl w-full transition-all flex justify-center items-center gap-2"
+                                >
+                                  {t("שְׁמִירָה וְהֶמְשֵׁךְ לַשְּׁאֵלָה הַבָּאָה")} <ArrowLeft size={20}/>
+                                </button>
+                              </div>
+                            )}
+
+                            {question.type === "sort" && (
+                              <div className="space-y-3">
+                                {sortItems.map((item, idx) => (
+                                  <div key={item.id} className="flex items-center gap-3 bg-white border-2 border-stone-200 p-3 rounded-xl shadow-sm">
+                                    <div className="flex flex-col gap-1">
+                                      <button onClick={() => handleSortMove(idx, -1)} disabled={idx === 0 || feedback === 'correct'} className="p-1 bg-stone-100 hover:bg-stone-200 rounded disabled:opacity-30 text-stone-600"><ArrowUp size={20}/></button>
+                                      <button onClick={() => handleSortMove(idx, 1)} disabled={idx === sortItems.length - 1 || feedback === 'correct'} className="p-1 bg-stone-100 hover:bg-stone-200 rounded disabled:opacity-30 text-stone-600"><ArrowDown size={20}/></button>
+                                    </div>
+                                    <div className="flex-1 text-xl font-normal bg-amber-50/50 p-3 rounded-lg border border-amber-100/50">{t(item.text)}</div>
+                                  </div>
+                                ))}
+                                {feedback !== 'correct' && (
+                                  <button onClick={checkSortOrder} className="mt-4 bg-amber-500 hover:bg-amber-600 text-white font-bold text-xl py-3 px-8 rounded-xl w-full transition-all">
+                                    {t("בִּדְקוּ אֶת הַסֵּדֶר")}
+                                  </button>
+                                )}
+                              </div>
+                            )}
+
+                            {question.type === "grammar" && (
+                              <div className="space-y-6 overflow-x-auto">
+                                <table className="w-full min-w-max border-collapse bg-white rounded-lg overflow-hidden border border-stone-200">
+                                  <thead>
+                                    <tr className="bg-green-100">
+                                      <th className="p-3 border border-green-200 font-bold text-green-900 text-right">{t("פּוֹעַל מֵהַטֶּקְסְט")}</th>
+                                      <th className="p-3 border border-green-200 font-bold text-green-900 text-right">{t("שׁוֹרֶשׁ")}</th>
+                                      <th className="p-3 border border-green-200 font-bold text-green-900 text-right">{t("זְמַן")}</th>
+                                      <th className="p-3 border border-green-200 font-bold text-green-900 text-right">{t("גּוּף")}</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {question.verbs.map((v, idx) => (
+                                      <tr key={idx}>
+                                        <td className="p-3 border border-stone-200 font-bold text-xl bg-amber-50 text-amber-900">{t(v.word)}</td>
+                                        <td className="p-2 border border-stone-200">
+                                          <select disabled={feedback === 'correct'} value={grammarState[idx]?.root || ""} onChange={e => updateGrammarState(idx, 'root', e.target.value)} className="w-full p-2 border border-stone-300 rounded font-normal text-lg bg-stone-50 focus:border-green-500">
+                                            <option value="">{t("בַּחֲרוּ...")}</option>
+                                            {GRAMMAR_OPTIONS.roots.map(r => <option key={r} value={r}>{t(r)}</option>)}
+                                          </select>
+                                        </td>
+                                        <td className="p-2 border border-stone-200">
+                                          <select disabled={feedback === 'correct'} value={grammarState[idx]?.tense || ""} onChange={e => updateGrammarState(idx, 'tense', e.target.value)} className="w-full p-2 border border-stone-300 rounded font-normal text-lg bg-stone-50 focus:border-green-500">
+                                            <option value="">{t("בַּחֲרוּ...")}</option>
+                                            {GRAMMAR_OPTIONS.tenses.map(r => <option key={r} value={r}>{t(r)}</option>)}
+                                          </select>
+                                        </td>
+                                        <td className="p-2 border border-stone-200">
+                                          <select disabled={feedback === 'correct'} value={grammarState[idx]?.person || ""} onChange={e => updateGrammarState(idx, 'person', e.target.value)} className="w-full p-2 border border-stone-300 rounded font-normal text-lg bg-stone-50 focus:border-green-500">
+                                            <option value="">{t("בַּחֲרוּ...")}</option>
+                                            {GRAMMAR_OPTIONS.persons.map(r => <option key={r} value={r}>{t(r)}</option>)}
+                                          </select>
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                                {feedback !== 'correct' && (
+                                  <button onClick={checkGrammarAnswers} className="bg-amber-500 hover:bg-amber-600 text-white font-bold text-xl py-3 px-8 rounded-xl w-full transition-all">
+                                    {t("בִּדְקוּ תְּשׁוּבוֹת")}
+                                  </button>
+                                )}
+                              </div>
+                            )}
+
+                          </div>
+
+                          <div className="mt-8"> 
+                            {feedback === 'correct' && (
+                              <div className="flex flex-col sm:flex-row items-center justify-between bg-green-50 border-2 border-green-200 p-4 rounded-2xl animate-in fade-in shadow-sm">
+                                <div className="flex items-center gap-3 text-green-700 w-full justify-center">
+                                  <CheckCircle2 size={32} /> <span className="text-xl font-bold">{t("תְּשׁוּבָה נְכוֹנָה! כָּל הַכָּבוֹד.")}</span>
+                                  <Timer className="animate-pulse opacity-60 mr-2" size={24}/>
+                                </div>
+                              </div>
+                            )}
+                            {feedback === 'incorrect' && (
+                              <div className="bg-rose-50 text-rose-700 border-2 border-rose-200 p-4 rounded-2xl flex items-center justify-center gap-2 animate-pulse">
+                                <XCircle size={24} /> <span className="text-lg font-medium">{t("לֹא מְדוּיָּק... נַסּוּ שׁוּב.")}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {currentScreen === 'summary' && (
+                <div className="flex-1 flex flex-col items-center justify-center p-6 text-center pt-20 bg-white/40 backdrop-blur-sm">
+                  <div className="bg-white/95 p-10 md:p-16 rounded-[3rem] shadow-2xl max-w-2xl border-4 border-green-400 relative overflow-hidden">
+                    <div className="absolute top-0 left-0 w-full h-4 bg-green-400"></div>
+                    <div className="flex justify-center mb-6 text-amber-500"><Trophy size={100} strokeWidth={1.5} /></div>
+                    <h1 className="text-5xl font-black text-green-800 mb-4">{t("כָּל הַכָּבוֹד!")}</h1>
+                    <h2 className="text-3xl text-green-700 font-bold mb-8">{t("סִיַּימְתֶּם אֶת הַשִּׁיעוּר בְּהַצְלָחָה רַבָּה.")}</h2>
+                    <div className="bg-amber-50 border-2 border-amber-200 rounded-3xl p-8 mb-10 inline-block">
+                      <p className="text-2xl text-stone-600 font-bold mb-2">{t("הַנִּיקּוּד הַסּוֹפִי שֶׁלָּכֶם:")}</p>
+                      <p className="text-6xl font-black text-amber-600">{score}</p>
+                    </div>
+                    <p className="text-2xl text-stone-700 font-normal mb-10 leading-relaxed max-w-md mx-auto flex flex-col items-center gap-3">
+                      <Leaf size={40} className="text-green-500"/>
+                      {t("זִכְרוּ תָּמִיד: כְּמוֹ שֶׁהַזְּרָעִים צָמְחוּ לִפְרָחִים, כָּךְ גַּם הַיָּמִים הַטּוֹבִים יַגִּיעוּ!")}
+                    </p>
+                    <button onClick={() => { jumpTo('welcome'); setScore(0); }} className="bg-green-500 hover:bg-green-600 text-white text-xl font-bold py-4 px-10 rounded-full shadow-xl transform transition hover:scale-105 flex items-center gap-3 mx-auto">
+                      <RefreshCcw size={24} /> {t("הַתְחִילוּ שִׁיעוּר מֵחָדָשׁ")}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        }
+
+        // --- Root App Wrapper (handles global state) ---
+        function AppWrapper() {
+            const [showNiqqud, setShowNiqqud] = useState(true);
+            return (
+                <NiqqudContext.Provider value={showNiqqud}>
+                    <button 
+                        onClick={() => setShowNiqqud(!showNiqqud)}
+                        className="fixed top-4 left-4 z-50 bg-white px-4 py-2 rounded-full shadow-lg border-2 border-emerald-300 text-emerald-800 hover:bg-emerald-50 transition-all flex items-center gap-2 font-bold text-sm select-none"
+                    >
+                        <Type size={18} />
+                        {showNiqqud ? 'בלי ניקוד' : 'עם ניקוד'}
+                    </button>
+                    <MainApp />
+                    
+                    {/* Persistent Footer Credit */}
+                    <footer className="fixed bottom-0 w-full bg-green-900/90 backdrop-blur-md text-green-50/90 text-center py-3 px-4 z-50 shadow-inner flex items-center justify-center gap-2">
+                        <p className="text-sm md:text-base font-medium select-none">
+                            {showNiqqud ? "יָצְרָה בְּאֶמְצָעוּת בִּינָה מְלָאכוּתִית: מוֹרָן קָמִיל גֶּלְבֶּרְג, הוֹרָאָה מֻתְאֶמֶת" : "יצרה באמצעות בינה מלאכותית: מורן קמיל גלברג, הוראה מותאמת"}
+                        </p>
+                    </footer>
+                </NiqqudContext.Provider>
+            );
+        }
+
+        // --- Render ---
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<AppWrapper />);
+    </script>
+</body>
+</html>
+
+```
